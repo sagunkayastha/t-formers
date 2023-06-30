@@ -16,7 +16,7 @@ class CreateDataset(data.Dataset):
     def __init__(self, opt):
         self.opt = opt
         
-        self.img_paths, self.img_size = make_dataset(opt.img_file)
+        # self.img_paths, self.img_size = make_dataset(opt.img_file)
         # self.images, self.masks = h5_loader()
         self.images = np.load('/tng4/users/skayasth/Yearly/2023/June/MAT/train_images.npy')
         self.masks = np.load('/tng4/users/skayasth/Yearly/2023/June/MAT/train_masks.npy')
