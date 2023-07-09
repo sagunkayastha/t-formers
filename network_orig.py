@@ -4,7 +4,7 @@ import math
 from torch.nn import functional as F
 from model.base_function import init_net
 from einops import rearrange as rearrange
-
+from icecream import ic
 
 def define_g(init_type='normal', gpu_ids=[]):
     net = Generator(ngf=48)
@@ -241,6 +241,7 @@ class FeedForward(nn.Module):
         return out
 
 
+
 class mGAttn(nn.Module):
     def __init__(self, in_ch=256, num_head=4):
         super().__init__()
@@ -274,6 +275,8 @@ class mGAttn(nn.Module):
         """
         x: b * c * h * w
         """
+        ic(x.shape)
+        exit()
         x = self.norm(x)
         Ba, Ca, He, We = x.size()
         q = self.query(x)

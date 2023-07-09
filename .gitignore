@@ -1,1 +1,9 @@
-*.pyc
+*.npy
+*.pth
+*.h5
+*.pt
+*.png
+*.zip
+*.pkl
+checkpoints/*
+*.pyc 

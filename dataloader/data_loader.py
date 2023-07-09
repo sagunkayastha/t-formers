@@ -18,8 +18,8 @@ class CreateDataset(data.Dataset):
         
         # self.img_paths, self.img_size = make_dataset(opt.img_file)
         # self.images, self.masks = h5_loader()
-        self.images = np.load('/tng4/users/skayasth/Yearly/2023/June/MAT/train_images.npy')
-        self.masks = np.load('/tng4/users/skayasth/Yearly/2023/June/MAT/train_masks.npy')
+        self.images = np.load('data/input_data_2.npy')
+        self.masks = np.load('data/input_mask_2.npy')
         self.img_size = self.images.shape[0]
         
         
@@ -30,7 +30,7 @@ class CreateDataset(data.Dataset):
         return {'img': img, 'img_path': img_path, 'mask': mask}
 
     def __len__(self):
-        return self.img_size
+        return self.img_size 
 
     def name(self):
         return "inpainting dataset"

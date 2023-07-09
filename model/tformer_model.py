@@ -23,7 +23,7 @@ class tformer(BaseModel):
             parser.add_argument('--lambda_l1', type=float, default=1, help='weight for reconstruction loss l1')
             parser.add_argument('--lambda_g', type=float, default=0.1, help='weight for generation loss')
             parser.add_argument('--lambda_sty', type=float, default=250, help='weight for style loss')
-
+            
         return parser
 
     def __init__(self, opt):
@@ -84,13 +84,13 @@ class tformer(BaseModel):
 
         self.net_G.eval()
         
-        input_data = np.load("input_data.npy")
-        mask_data = np.load("input_mask.npy")
+        input_data = np.load("/tng4/users/skayasth/Yearly/2023/June/T-former_image_inpainting/input_data.npy")
+        mask_data = np.load("/tng4/users/skayasth/Yearly/2023/June/T-former_image_inpainting/input_mask.npy")
         # Define the desired padded dimensions
         
         original_array = input_data
 
-        padded_height, padded_width = 1024, 1536
+        padded_height, padded_width = 896, 1536
 
 
         # Get the original array shape
@@ -125,7 +125,7 @@ class tformer(BaseModel):
         torch.save( self.img.cpu().detach().numpy(), 'out_g.npy', )
         torch.save( self.mask.cpu().detach().numpy(), 'mask_.npy',)
         torch.save( self.img_truth.cpu().detach().numpy(), 'img_truh.npy',)
-        exit()
+        
         self.img_out = self.img_g * (1 - self.mask) + self.img_truth * self.mask
         
         # self.save_results(self.img_out, data_name='out')
@@ -137,6 +137,7 @@ class tformer(BaseModel):
         
         self.img_g = self.net_G(self.img_m, self.mask)
         torch.save(self.net_G, 'checkpoints/G_model.pth')
+        # exit()
         self.img_out = self.img_g * (1 - self.mask) + self.img_truth * self.mask
         
         self.img_out = self.img_out[:,0:1,:,:]

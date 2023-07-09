@@ -4,7 +4,7 @@ import math
 from torch.nn import functional as F
 from model.base_function import init_net
 from einops import rearrange as rearrange
-from icecream import ic
+from model.pconv import PartialConv2d
 
 def define_g(init_type='normal', gpu_ids=[]):
     net = Generator(ngf=48)
@@ -20,6 +20,14 @@ def define_d(init_type= 'normal', gpu_ids=[]):
 class Generator(nn.Module):
     def __init__(self, ngf=48, num_block=[1,2,3,4], num_head=[1,2,4,8], factor=2.66):
         super().__init__()
+        
+        self.pconv = PartialConv2d(in_channels=3, out_channels=ngf, kernel_size=7, multi_channel=True, padding=3)
+        self.start_2 = nn.Sequential(
+                            nn.InstanceNorm2d(ngf),
+                            nn.GELU()
+                            )
+        
+        
         self.start = nn.Sequential(
             nn.ReflectionPad2d(3),
             nn.Conv2d(in_channels=6, out_channels=ngf, kernel_size=7, padding=0),
@@ -71,9 +79,14 @@ class Generator(nn.Module):
 
     def forward(self, x, mask=None):
         
-        
+        # x = torch.cat([x,x], dim=1)
+        # mask = torch.cat([mask,mask], dim=1)
         feature = torch.cat([x, mask], dim=1)
         feature256 = self.start(feature)
+        
+        # f1 = self.pconv(x, mask)
+        # feature256 = self.start_2(f1)
+        
 
         feature256 = self.trane256(feature256)
         feature128 = self.down128(feature256)
@@ -144,52 +157,14 @@ class Discriminator(nn.Module):
 
         return outputs, [conv1, conv2, conv3, conv4, conv5]
 
-## Multi-DConv Head Transposed Self-Attention (MDTA)
-class DAttn(nn.Module):
-    def __init__(self, dim, num_heads, bias):
-        super(DAttn, self).__init__()
-        self.num_heads = num_heads
-        self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1))
 
-        self.qkv = nn.Conv2d(dim, dim*3, kernel_size=1, bias=bias)
-        self.qkv_dwconv = nn.Conv2d(dim*3, dim*3, kernel_size=3, stride=1, padding=1, groups=dim*3, bias=bias)
-        self.project_out = nn.Conv2d(dim, dim, kernel_size=1, bias=bias)
-        
-
-
-    def forward(self, x):
-        b,c,h,w = x.shape
-
-        qkv = self.qkv_dwconv(self.qkv(x))
-        
-        q,k,v = qkv.chunk(3, dim=1)   
-        
-        q = rearrange(q, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        k = rearrange(k, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        v = rearrange(v, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-
-        q = torch.nn.functional.normalize(q, dim=-1)
-        k = torch.nn.functional.normalize(k, dim=-1)
-
-        attn = (q @ k.transpose(-2, -1)) * self.temperature
-        attn = attn.softmax(dim=-1)
-
-        out = (attn @ v)
-        
-        out = rearrange(out, 'b head c (h w) -> b (head c) h w', head=self.num_heads, h=h, w=w)
-        
-        out = self.project_out(out)
-        return out
-    
 # (H * W) * C -> (H/2 * C/2) * (4C) -> (H/4 * W/4) * 16C -> (H/8 * W/8) * 64C
 class TransformerEncoder(nn.Module):
     def __init__(self, in_ch=256, head=4, expansion_factor=2.66):
         super().__init__()
 
         self.attn = mGAttn(in_ch=in_ch, num_head=head)
-        # self.attn = DAttn(dim=in_ch, num_heads=head, bias=False)
         self.feed_forward = FeedForward(dim=in_ch, expansion_factor=expansion_factor)
-        # self.feed_forward = DFeedForward(dim=in_ch, ffn_expansion_factor=expansion_factor, bias=False)
 
     def forward(self, x):
         x = self.attn(x) + x
@@ -278,24 +253,6 @@ class FeedForward(nn.Module):
         out = out + x
         return out
 
-class DFeedForward(nn.Module):
-    def __init__(self, dim=64, ffn_expansion_factor=2.66, bias=False):
-        super(DFeedForward, self).__init__()
-
-        hidden_features = int(dim*ffn_expansion_factor)
-
-        self.project_in = nn.Conv2d(dim, hidden_features*2, kernel_size=1, bias=bias)
-
-        self.dwconv = nn.Conv2d(hidden_features*2, hidden_features*2, kernel_size=3, stride=1, padding=1, groups=hidden_features*2, bias=bias)
-
-        self.project_out = nn.Conv2d(hidden_features, dim, kernel_size=1, bias=bias)
-
-    def forward(self, x):
-        x = self.project_in(x)
-        x1, x2 = self.dwconv(x).chunk(2, dim=1)
-        x = F.gelu(x1) * x2
-        x = self.project_out(x)
-        return x
 
 class mGAttn(nn.Module):
     def __init__(self, in_ch=256, num_head=4):
@@ -330,7 +287,6 @@ class mGAttn(nn.Module):
         """
         x: b * c * h * w
         """
-        
         x = self.norm(x)
         Ba, Ca, He, We = x.size()
         q = self.query(x)
