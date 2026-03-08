@@ -113,9 +113,9 @@ class BaseModel():
                 path = os.path.join(self.save_dir, filename)
                 net = getattr(self, 'net_' + name)
                 try:
-                    net.load_state_dict(torch.load(path))
+                    net.load_state_dict(torch.load(path, weights_only=True))
                 except:
-                    pretrained_dict = torch.load(path)
+                    pretrained_dict = torch.load(path, weights_only=True)
                     model_dict = net.state_dict()
                     try:
                         pretrained_dict = {k:v for k,v in pretrained_dict.items() if k in model_dict}

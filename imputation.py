@@ -18,12 +18,49 @@ test_shape = (896, 1536)
 data_path = "/tng4/users/skayasth/Yearly/2023/Jan/TCEQ/Data_for_PCNN"
 max_file = "/tng4/users/skayasth/Yearly/2023/Jan/TCEQ/Modified_PCNN/runs/512_old_arch/maxes.pkl"
 
+class _RestrictedUnpickler(pickle.Unpickler):
+    """Unpickler that only allows safe built-in types and numpy/scipy arrays."""
+    _ALLOWED = {
+        ('builtins', 'dict'),
+        ('builtins', 'list'),
+        ('builtins', 'tuple'),
+        ('builtins', 'set'),
+        ('builtins', 'frozenset'),
+        ('builtins', 'str'),
+        ('builtins', 'int'),
+        ('builtins', 'float'),
+        ('builtins', 'bool'),
+        ('builtins', 'bytes'),
+        ('builtins', 'bytearray'),
+        ('builtins', 'complex'),
+        ('builtins', 'NoneType'),
+    }
+    _ALLOWED_PREFIXES = ('numpy.', 'scipy.',)
+
+    def find_class(self, module, name):
+        if (module, name) in self._ALLOWED:
+            return super().find_class(module, name)
+        if any(module.startswith(p) for p in self._ALLOWED_PREFIXES):
+            return super().find_class(module, name)
+        raise pickle.UnpicklingError(
+            f"Global '{module}.{name}' is not allowed")
+
+
+def _safe_pickle_load(path):
+    """Load a pickle file using a restricted unpickler."""
+    try:
+        with open(path, 'rb') as fh:
+            return _RestrictedUnpickler(fh).load()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Pickle file not found: '{path}'")
+    except pickle.UnpicklingError as exc:
+        raise pickle.UnpicklingError(
+            f"Failed to safely load pickle file '{path}': {exc}") from exc
+
+
 # Save dictionary to a file
-with open('Station_dict.pkl', 'rb') as file:
-    Station_dict = pickle.load(file)
-    
-with open('Mask_dict.pkl', 'rb') as file:
-    Mask_dict = pickle.dump(file)
+Station_dict = _safe_pickle_load('Station_dict.pkl')
+Mask_dict = _safe_pickle_load('Mask_dict.pkl')
     
     
 # Predict

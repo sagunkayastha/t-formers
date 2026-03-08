@@ -3,7 +3,6 @@ from model.base_model import BaseModel
 from model import base_function, network
 import itertools
 from model.loss import AdversarialLoss, PerceptualLoss, StyleLoss
-import numpy as np
 def IOA(o, p):
     ioa = 1- (torch.sum((o-p)**2))/(torch.sum((torch.abs(p-torch.mean(o))+torch.abs(o-torch.mean(o)))**2))
     # ioa = 1 -(np.sum((o-s)**2))/(np.sum((np.abs(s-np.mean(o))+np.abs(o-np.mean(o)))**2))
@@ -83,48 +82,8 @@ class tformer(BaseModel):
         # self.save_results(self.img_m, data_name='mask')
 
         self.net_G.eval()
-        
-        input_data = np.load("/tng4/users/skayasth/Yearly/2023/June/T-former_image_inpainting/input_data.npy")
-        mask_data = np.load("/tng4/users/skayasth/Yearly/2023/June/T-former_image_inpainting/input_mask.npy")
-        # Define the desired padded dimensions
-        
-        original_array = input_data
 
-        padded_height, padded_width = 896, 1536
-
-
-        # Get the original array shape
-        original_height, original_width, original_channels = original_array.shape
-
-        # Calculate the required amount of padding
-        pad_height = padded_height - original_height
-        pad_width = padded_width - original_width
-
-        # Calculate the padding sizes for each dimension
-        top_padding = pad_height // 2
-        bottom_padding = pad_height - top_padding
-        left_padding = pad_width // 2
-        right_padding = pad_width - left_padding
-
-
-        # Perform the zero-padding
-        day_in_padded = np.pad(original_array, ((top_padding, bottom_padding), (left_padding, right_padding), (0, 0)), mode='constant')
-
-        mask_in_padded = np.pad(mask_data, ((top_padding, bottom_padding), (left_padding, right_padding), (0, 0)), mode='constant')
-        # unpadded_array = padded_array[top_padding:top_padding+original_height, left_padding:left_padding+original_width, :]
-
-        i, j = np.expand_dims(day_in_padded, axis=0), np.expand_dims(
-        mask_in_padded, axis=0)
-        i, j = np.einsum('nijk->nkij', i), np.einsum('nijk->nkij',j)
-        i, j = torch.from_numpy(i).float().cuda(), torch.from_numpy(j).float().cuda()
-        # self.img_g = self.net_G(self.img_m, self.mask)
-        self.img_g = self.net_G(i, j)
-        
-        
-        
-        torch.save( self.img.cpu().detach().numpy(), 'out_g.npy', )
-        torch.save( self.mask.cpu().detach().numpy(), 'mask_.npy',)
-        torch.save( self.img_truth.cpu().detach().numpy(), 'img_truh.npy',)
+        self.img_g = self.net_G(self.img_m, self.mask)
         
         self.img_out = self.img_g * (1 - self.mask) + self.img_truth * self.mask
         
@@ -136,7 +95,7 @@ class tformer(BaseModel):
         # encoder process
         
         self.img_g = self.net_G(self.img_m, self.mask)
-        torch.save(self.net_G, 'checkpoints/G_model.pth')
+        torch.save(self.net_G.state_dict(), 'checkpoints/G_model.pth')
         # exit()
         self.img_out = self.img_g * (1 - self.mask) + self.img_truth * self.mask
         
